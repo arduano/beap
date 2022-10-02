@@ -20,11 +20,7 @@ impl<T: Ord> Beap<T> {
     }
 
     // The function to run the bubble up algorithm, while tracking the action it took at each step
-    fn bubble_up<S: TrackSteps<AnimatedSwap>>(
-        &mut self,
-        steps: &mut S,
-        mut coord: BeapCoordinate,
-    ) {
+    fn bubble_up<S: TrackSteps<AnimatedSwap>>(&mut self, steps: &mut S, mut coord: BeapCoordinate) {
         loop {
             if coord == BeapCoordinate::zero() {
                 // We've reached the top. There is no where else to swap.
@@ -76,11 +72,7 @@ impl<T: Ord> Beap<T> {
     }
 
     // The function to run the sink algorithm, while tracking the action it took at each step
-    fn sink<S: TrackSteps<AnimatedSwap>>(
-        &mut self,
-        steps: &mut S,
-        mut coord: BeapCoordinate,
-    ) {
+    fn sink<S: TrackSteps<AnimatedSwap>>(&mut self, steps: &mut S, mut coord: BeapCoordinate) {
         loop {
             let left_child = coord.left_child();
             let right_child = coord.right_child();
@@ -124,9 +116,11 @@ impl<T: Ord> Beap<T> {
         steps: &mut S,
         mut compare: impl FnMut(BeapCoordinate, &'a T) -> Ordering,
     ) -> Option<BeapCoordinate> {
+        // Start at the bottom left of the beap
         let mut coord = BeapCoordinate::new(self.depth() - 1, 0);
 
         loop {
+            // If the value at the coordinate is out of bounds of the array, then we've reached the end
             let value = match self.data.get(coord.array_index()) {
                 Some(value) => value,
                 None => return None,
@@ -134,8 +128,10 @@ impl<T: Ord> Beap<T> {
 
             steps.add_step(AnimatedSearch { coord });
 
+            // Get the comparison value (greater or lesser or equal) based on the criteria
             let mut compared = compare(coord, value);
 
+            // If the comparison is lesser but going down isn't possible then try going up instead
             if compared == Ordering::Less {
                 if coord.right_child().array_index() >= self.data.len() {
                     compared = Ordering::Greater;
@@ -143,14 +139,20 @@ impl<T: Ord> Beap<T> {
             }
 
             match compared {
+                // If it's equal then we've reached the value
                 Ordering::Equal => return Some(coord),
+
+                // If it's greater then we need to go up
                 Ordering::Greater => {
                     if let Some(parent) = coord.right_parent() {
                         coord = parent;
                     } else {
+                        // If we can't go up then we've reached the end
                         return None;
                     }
                 }
+
+                // If it's lesser then we need to go down
                 Ordering::Less => {
                     coord = coord.right_child();
                 }
@@ -270,7 +272,10 @@ impl<T: Ord> Beap<T> {
         item: &T,
     ) -> S::WrapOutput<Option<BeapCoordinate>> {
         let mut steps = S::new();
+
+        // Step based on direct comparison
         let coord = self.step_through(&mut steps, |_, value| value.cmp(item));
+
         steps.wrap_output(coord)
     }
 
@@ -285,6 +290,9 @@ impl<T: Ord> Beap<T> {
         let mut steps = S::new();
         let mut found_coord = None;
         let mut item: Option<&T> = None;
+
+        // Step based on comparison but never return equals, as we need to go through
+        // all relevant values until we reach the end
         self.step_through(&mut steps, |coord, value| {
             if value > greater_than {
                 // If the value is smaller or the current item is none, set the found values
